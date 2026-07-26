@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BigQuery Release Notes Radar & X/Tweet Composer</title>
+  
+  <!-- Modern Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+  <!-- Ambient Glow Background -->
+  <div class="glow-sphere sphere-1"></div>
+  <div class="glow-sphere sphere-2"></div>
+
+  <!-- Main Container -->
+  <div class="app-wrapper">
+
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="logo-box">
+          <i class="fa-solid fa-database logo-icon"></i>
+        </div>
+        <div class="brand-text">
+          <h1>BigQuery <span>Release Radar</span></h1>
+          <p class="subtitle">Official Google Cloud BigQuery Updates & Tweet Generator</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div class="feed-status-badge" id="feedStatusBadge">
+          <span class="status-dot"></span>
+          <span id="feedStatusText">Connecting...</span>
+        </div>
+
+        <button id="refreshBtn" class="btn-refresh" title="Refresh Release Notes">
+          <i class="fas fa-sync-alt" id="refreshSpinner"></i>
+          <span>Refresh Notes</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Toolbar: Search & Category Filters -->
+    <section class="toolbar-section">
+      <div class="search-box-wrapper">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" id="searchInput" placeholder="Search updates by SQL, Kafka, ML, table, or keyword..." autocomplete="off">
+        <button id="clearSearchBtn" class="clear-search-btn" style="display: none;">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="category-filters" id="categoryFilters">
+        <button class="filter-btn active" data-category="ALL">All <span class="badge-count" id="countAll">0</span></button>
+        <button class="filter-btn" data-category="FEATURE">Features <span class="badge-count" id="countFeature">0</span></button>
+        <button class="filter-btn" data-category="CHANGED">Changes <span class="badge-count" id="countChanged">0</span></button>
+        <button class="filter-btn" data-category="DEPRECATED">Deprecated <span class="badge-count" id="countDeprecated">0</span></button>
+        <button class="filter-btn" data-category="FIXED">Fixes <span class="badge-count" id="countFixed">0</span></button>
+      </div>
+    </section>
+
+    <!-- Selection Bar for Bulk Tweeting -->
+    <div class="selection-bar" id="selectionBar" style="display: none;">
+      <div class="selection-info">
+        <i class="fas fa-check-circle"></i>
+        <span id="selectedCountText">0 items selected</span>
+      </div>
+      <div class="selection-actions">
+        <button id="tweetSelectedBtn" class="btn-tweet-selected">
+          <i class="fa-brands fa-x-twitter"></i> Tweet Selected Digest
+        </button>
+        <button id="clearSelectionBtn" class="btn-text">Clear Selection</button>
+      </div>
+    </div>
+
+    <!-- Main Release Notes Feed Grid -->
+    <main class="feed-container">
+      <div class="feed-header-meta">
+        <h2>Latest Release Notes</h2>
+        <span class="last-updated" id="lastUpdatedText">Last updated: Just now</span>
+      </div>
+
+      <!-- Loading Skeleton Container -->
+      <div id="skeletonLoader" class="cards-grid">
+        <div class="card-skeleton"></div>
+        <div class="card-skeleton"></div>
+        <div class="card-skeleton"></div>
+      </div>
+
+      <!-- Release Notes Cards Grid -->
+      <div id="notesGrid" class="cards-grid" style="display: none;"></div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="empty-state" style="display: none;">
+        <i class="fas fa-search-minus empty-icon"></i>
+        <h3>No matching updates found</h3>
+        <p>Try searching with different keywords or switching category filters.</p>
+        <button id="resetFiltersBtn" class="btn-secondary">Reset Filters</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Tweet Modal -->
+  <div id="tweetModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-brands fa-x-twitter twitter-logo"></i>
+          <h3>Compose Tweet</h3>
+        </div>
+        <button id="closeModalBtn" class="btn-icon-close"><i class="fas fa-times"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Live Tweet Card Preview -->
+        <div class="tweet-editor-wrapper">
+          <label for="tweetTextArea">Tweet Text (Editable):</label>
+          <textarea id="tweetTextArea" rows="6" placeholder="Customize your tweet here..."></textarea>
+          
+          <div class="char-count-bar">
+            <div class="progress-bar-track">
+              <div id="charProgress" class="progress-bar-fill"></div>
+            </div>
+            <span id="charCountText">0 / 280</span>
+          </div>
+        </div>
+
+        <!-- Quick Hashtags Adder -->
+        <div class="hashtag-selector">
+          <span>Add Quick Tags:</span>
+          <div class="tag-chips">
+            <button class="chip-btn" data-tag="#BigQuery">+ #BigQuery</button>
+            <button class="chip-btn" data-tag="#GoogleCloud">+ #GoogleCloud</button>
+            <button class="chip-btn" data-tag="#DataEngineering">+ #DataEngineering</button>
+            <button class="chip-btn" data-tag="#SQL">+ #SQL</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="copyTweetBtn" class="btn-secondary">
+          <i class="fas fa-copy"></i> Copy Text
+        </button>
+        <button id="postToTwitterBtn" class="btn-tweet-primary">
+          <i class="fa-brands fa-x-twitter"></i> Post to X (Twitter)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast" style="display: none;">
+    <i class="fas fa-check-circle"></i>
+    <span id="toastMsg">Copied to clipboard!</span>
+  </div>
+
+  <!-- Custom Scripts -->
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
